@@ -324,6 +324,8 @@ async function ejecutarRecargaConReintentos(datos, maxIntentos = CONFIG.MAX_REIN
                     test_mode: true,
                     nickname: resultado.nickname,
                     time_ms: resultado.time_ms,
+                    pin: pinData.pin,
+                    producto: producto.nombre || 'Free Fire',
                     mensaje: '🧪 TEST EXITOSO - PIN no canjeado'
                 };
             }
@@ -360,6 +362,8 @@ async function ejecutarRecargaConReintentos(datos, maxIntentos = CONFIG.MAX_REIN
                 nickname: resultado.nickname,
                 venta_id: venta[0]?.id,
                 time_ms: resultado.time_ms,
+                pin: pinData.pin,
+                producto: producto.nombre || 'Free Fire',
                 intentos: intento
             };
         }
