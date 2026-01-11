@@ -256,29 +256,54 @@ async function ejecutarRecarga(idJugador, pinRecarga, nicknameEsperado = null, h
         if (hacerCanje) {
             log('9️⃣', 'Canjeando...');
             await page.click('#btn-redeem');
-            await sleep(2500);
             
-            // Verificar resultado (español, inglés y portugués)
+            // Esperar más tiempo para que cargue el resultado
+            await sleep(3500);
+            
+            // Verificar resultado - buscar mensaje de éxito específico
             const resultado = await page.evaluate(() => {
+                // Buscar en el h2 específico del mensaje de éxito
+                const h2 = document.querySelector('.text-block.center h2, .text-block h2');
+                if (h2) {
+                    const texto = h2.innerText.toLowerCase();
+                    if (texto.includes('sucesso') || texto.includes('success') || 
+                        texto.includes('exitoso') || texto.includes('resgatado')) {
+                        return { ok: true, msg: h2.innerText };
+                    }
+                }
+                
+                // Buscar en todo el body como fallback
                 const body = document.body.innerText.toLowerCase();
-                // Éxito en cualquier idioma
-                if (body.includes('success') || body.includes('exitoso') || body.includes('completado') || 
-                    body.includes('canjeado') || body.includes('sucesso') || body.includes('resgatado')) {
+                if (body.includes('foram resgatados') || body.includes('com sucesso') ||
+                    body.includes('créditos foram') || body.includes('creditado na conta') ||
+                    body.includes('success') || body.includes('exitoso') || 
+                    body.includes('completado') || body.includes('canjeado') || 
+                    body.includes('sucesso') || body.includes('resgatado')) {
                     return { ok: true };
                 }
+                
+                // Buscar errores
                 const error = document.querySelector('.error, .alert-danger, [class*="error"]');
                 if (error) return { ok: false, msg: error.textContent.trim() };
-                return { ok: true };
+                
+                // Si hay fecha de resgate, fue exitoso
+                if (body.includes('resgatado na levelup') || body.includes('resgatado em')) {
+                    return { ok: true };
+                }
+                
+                return { ok: false, msg: 'No se pudo confirmar el canje' };
             });
             
             const elapsed = Date.now() - start;
-            await page.close();
             
             if (resultado.ok) {
                 log('🎉', `RECARGA EXITOSA (${elapsed}ms)`);
+                if (resultado.msg) log('📝', resultado.msg);
+                await page.close();
                 log('🎮', '═'.repeat(45));
                 return { success: true, nickname, time_ms: elapsed };
             } else {
+                await page.close();
                 throw new Error(resultado.msg || 'Error en el canje');
             }
         } else {
@@ -352,29 +377,24 @@ async function ejecutarRecargaConReintentos(datos, maxIntentos = CONFIG.MAX_REIN
                 };
             }
             
-            // Modo producción - Registrar venta
-            log('💾', 'Registrando venta...');
-            const venta = await supabaseInsert('ventas', {
-                id_juego,
-                producto_id: producto.id,
-                juego: producto.nombre || 'Free Fire',
-                cantidad: producto.cantidad || 0,
-                costo_usd: producto.costo_usd || 0,
-                precio_usd: producto.precio_usd || 0,
-                operador_nombre: 'Web',
-                telefono_cliente: telefono || null,
-                pin_usado: pinData.pin
-            });
+            // Modo producción - Marcar PIN usado
+            log('💾', 'Registrando en base de datos...');
             
             // Marcar PIN usado
             await supabaseUpdate('pins_web', 
-                { estado: 'usado', usado_en: new Date().toISOString(), venta_id: venta[0]?.id }, 
+                { estado: 'usado', usado_en: new Date().toISOString() }, 
                 `?id=eq.${pinData.id}`);
             
-            // Marcar transacción procesada
+            // Marcar transacción procesada con PIN usado
             if (transaccion_id) {
+                const productoNombre = `Free Fire ${producto.cantidad || ''} Diamantes`.trim();
                 await supabaseUpdate('transacciones_web', 
-                    { procesada: true, venta_id: venta[0]?.id }, 
+                    { 
+                        procesada: true, 
+                        pin_usado: pinData.pin, 
+                        procesada_at: new Date().toISOString(),
+                        producto_nombre: productoNombre
+                    }, 
                     `?id=eq.${transaccion_id}`);
             }
             
@@ -382,7 +402,6 @@ async function ejecutarRecargaConReintentos(datos, maxIntentos = CONFIG.MAX_REIN
             return {
                 success: true,
                 nickname: resultado.nickname,
-                venta_id: venta[0]?.id,
                 time_ms: resultado.time_ms,
                 pin: pinData.pin,
                 producto: producto.nombre || 'Free Fire',
