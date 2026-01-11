@@ -128,9 +128,29 @@ async function ejecutarRecarga(idJugador, pinRecarga, nicknameEsperado = null, h
         log('4️⃣', 'Validando PIN...');
         await page.click('#btn-validate');
         
-        // 5. Esperar formulario
+        // 5. Esperar formulario o mensaje de error
         log('5️⃣', 'Esperando formulario...');
         await sleep(1500);
+        
+        // Verificar si PIN ya fue usado (mensaje en portugués/español/inglés)
+        const pinYaUsado = await page.evaluate(() => {
+            const body = document.body.innerText.toLowerCase();
+            // Portugués
+            if (body.includes('já foi resgatado') || body.includes('já utilizado') || 
+                body.includes('código já') || body.includes('já foi utilizado')) return true;
+            // Español
+            if (body.includes('ya fue canjeado') || body.includes('ya utilizado') || 
+                body.includes('código ya usado') || body.includes('ya fue usado')) return true;
+            // Inglés
+            if (body.includes('already redeemed') || body.includes('already used') || 
+                body.includes('code already')) return true;
+            return false;
+        });
+        
+        if (pinYaUsado) {
+            throw new Error('PIN ya fue canjeado anteriormente');
+        }
+        
         await page.waitForSelector('#GameAccountId', { visible: true, timeout: 15000 });
         await sleep(500);
         
@@ -238,10 +258,12 @@ async function ejecutarRecarga(idJugador, pinRecarga, nicknameEsperado = null, h
             await page.click('#btn-redeem');
             await sleep(2500);
             
-            // Verificar resultado
+            // Verificar resultado (español, inglés y portugués)
             const resultado = await page.evaluate(() => {
                 const body = document.body.innerText.toLowerCase();
-                if (body.includes('success') || body.includes('exitoso') || body.includes('completado') || body.includes('canjeado')) {
+                // Éxito en cualquier idioma
+                if (body.includes('success') || body.includes('exitoso') || body.includes('completado') || 
+                    body.includes('canjeado') || body.includes('sucesso') || body.includes('resgatado')) {
                     return { ok: true };
                 }
                 const error = document.querySelector('.error, .alert-danger, [class*="error"]');
