@@ -16,7 +16,11 @@ const CONFIG = {
     DELAY_MEDIO: 300,
     DELAY_LARGO: 500,
     // MODO TEST: true = no canjea de verdad, false = producción
-    MODO_TEST: process.env.MODO_TEST === 'false' ? false : true
+    // Para producción: MODO_TEST=false o MODO_TEST=0
+    MODO_TEST: (() => {
+        const val = (process.env.MODO_TEST || '').toString().toLowerCase().trim();
+        return val !== 'false' && val !== '0';
+    })()
 };
 
 const SUPABASE_URL = 'https://jodltxvsernvdevqkswp.supabase.co';
