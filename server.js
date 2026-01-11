@@ -18,7 +18,9 @@ const CONFIG = {
     // MODO TEST: true = no canjea de verdad, false = producción
     // Para producción: MODO_TEST=false o MODO_TEST=0
     MODO_TEST: (() => {
-        const val = (process.env.MODO_TEST || '').toString().toLowerCase().trim();
+        const raw = process.env.MODO_TEST || '';
+        const val = raw.toString().toLowerCase().trim().replace(/['"]/g, '');
+        console.log(`[DEBUG] MODO_TEST raw="${raw}" cleaned="${val}"`);
         return val !== 'false' && val !== '0';
     })()
 };
