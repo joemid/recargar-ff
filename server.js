@@ -266,20 +266,35 @@ async function ejecutarRecarga(idJugador, pinRecarga, nicknameEsperado = null, h
                 const h2 = document.querySelector('.text-block.center h2, .text-block h2');
                 if (h2) {
                     const texto = h2.innerText.toLowerCase();
+                    // Éxito inmediato
                     if (texto.includes('sucesso') || texto.includes('success') || 
                         texto.includes('exitoso') || texto.includes('resgatado')) {
+                        return { ok: true, msg: h2.innerText };
+                    }
+                    // En proceso = también es éxito (PIN canjeado, diamantes en camino)
+                    if (texto.includes('em processo') || texto.includes('processado') ||
+                        texto.includes('entrega de créditos') || texto.includes('em breve')) {
                         return { ok: true, msg: h2.innerText };
                     }
                 }
                 
                 // Buscar en todo el body como fallback
                 const body = document.body.innerText.toLowerCase();
+                
+                // Éxito confirmado
                 if (body.includes('foram resgatados') || body.includes('com sucesso') ||
                     body.includes('créditos foram') || body.includes('creditado na conta') ||
                     body.includes('success') || body.includes('exitoso') || 
                     body.includes('completado') || body.includes('canjeado') || 
                     body.includes('sucesso') || body.includes('resgatado')) {
                     return { ok: true };
+                }
+                
+                // En proceso = éxito (diamantes en camino)
+                if (body.includes('em processo') || body.includes('sendo processado') ||
+                    body.includes('entrega de créditos') || body.includes('disponível em breve') ||
+                    body.includes('aguenta firme')) {
+                    return { ok: true, msg: 'En proceso - diamantes en camino' };
                 }
                 
                 // Buscar errores
